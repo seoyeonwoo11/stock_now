@@ -2,10 +2,14 @@
 
 Production URL: https://stock-now-chris.oakenelf10.chatgpt.site
 
-Sites runs the API as a Cloudflare Worker, rather than starting the Express Node.js listener. The existing Express server remains available for standalone Node.js hosting. `server/worker.mjs` preserves the API paths and shares the Yahoo and demo providers. SSE updates every 15 seconds (5 seconds for demo), reconnects after a bounded 55-second session, and clears timers on disconnect.
+Sites runs the React app and same-origin API in a Cloudflare Worker. The Express server remains available for standalone Node.js hosting. Both use Toss Securities Open API; Google News RSS supplies related news because Toss does not provide a news endpoint.
 
-Run `npm ci`, `npm test`, and `npm run build`. The build embeds the React assets in `dist/server/index.js` and emits `dist/.openai/hosting.json` for Sites packaging. Do not configure static-only hosting: it would omit the API.
+Set TOSS_CLIENT_ID and TOSS_CLIENT_SECRET as Sites runtime Secrets. Local .env files are not uploaded. No trading or account endpoints are implemented.
 
-The GitHub repository is the editable source mirror. Publishing a GitHub commit is not an automatic Sites deployment; use the Sites source synchronization and version/deployment workflow to publish subsequent changes. Site access starts owner-private.
+The DB D1 binding stores the one active Toss token with a refresh lease shared by Worker isolates. Schema migrations live in drizzle/ and are copied to dist/.openai/drizzle during build. Sites applies them during publication. No token is exposed through the app API.
 
-Verified before deployment: nine existing API/provider tests, TypeScript, React production build, and actual Yahoo requests for Samsung search, Apple quote, Samsung chart (73 points), and PLTR search outside the local catalog. All live responses used Yahoo data, not demo fixtures. Provider prices may be delayed or reflect the last market session.
+Run npm test and npm run build. The build embeds React assets in dist/server/index.js and emits the hosting manifest and migrations. Always run the Vite build before build-worker.mjs to clear old output. Do not configure static-only hosting.
+
+SSE supplies polled prices every 15 seconds, reconnects after 55 seconds and clears timers on disconnect. A successful health check does not verify upstream access: validate quotes, searches and chart history.
+
+GitHub is the editable source mirror; pushing a GitHub commit alone does not deploy Sites. Preserve the current Site audience when publishing.

@@ -10,3 +10,5 @@ fs.writeFileSync('server/worker-assets.mjs',`export const assets=${JSON.stringif
 await build({entryPoints:['server/worker.mjs'],bundle:true,format:'esm',platform:'browser',target:'es2022',outfile:'dist/server/index.js',minify:true});
 fs.mkdirSync('dist/.openai',{recursive:true});
 fs.copyFileSync('.openai/hosting.json','dist/.openai/hosting.json');
+
+fs.cpSync('drizzle','dist/.openai/drizzle',{recursive:true});

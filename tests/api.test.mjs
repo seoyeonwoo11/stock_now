@@ -20,6 +20,6 @@ test('SSE supplies initial and subsequent quotes and allows disconnect',async()=
  try{while((body.match(/event: quote\n/g)||[]).length<2){const item=await reader.read();body+=new TextDecoder().decode(item.value);}const values=[...body.matchAll(/data: (.+)\n/g)].map(m=>JSON.parse(m[1]));assert.ok(values.every(q=>q.symbol==='AAPL'&&q.isDemo));assert.ok(Date.parse(values[1].asOf)>Date.parse(values[0].asOf));}finally{clearTimeout(timer);controller.abort();await reader.cancel().catch(()=>{});}
 }));
 test('live failures never silently become demo prices or disclose internal errors',async()=>{
- const provider={status:{mode:'yahoo'},async search(){throw new Error('sensitive-value');}};
+ const provider={status:{mode:'toss'},async search(){throw new Error('sensitive-value');}};
  await withServer({provider},async base=>{const response=await fetch(`${base}/api/search`);assert.equal(response.status,502);assert.doesNotMatch(await response.text(),/sensitive-value|"items"/);const demo=await(await fetch(`${base}/api/demo/search?q=애플`)).json();assert.equal(demo.items[0].symbol,'AAPL');assert.equal(demo.items[0].isDemo,true);});
 });

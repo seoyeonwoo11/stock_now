@@ -35,13 +35,6 @@ export function createNewsProvider({fetchImpl=globalThis.fetch,now=()=>Date.now(
   const url=new URL('https://news.google.com/rss/search');url.search=new URLSearchParams({q:query,hl:domestic?'ko':'en-US',gl:domestic?'KR':'US',ceid:domestic?'KR:ko':'US:en'}).toString();
   return rss(url.href,'Google News');
  }
- async function yahoo(stock){
-  const url=new URL('https://query1.finance.yahoo.com/v1/finance/search');url.search=new URLSearchParams({q:stock.market==='KR'?stock.englishName||stock.symbol:stock.symbol,quotesCount:'0',newsCount:'12'}).toString();
-  const data=await(await request(url.href)).json();
-  const yahooSymbol=/^\d{6}$/.test(stock.symbol)?stock.symbol+'.KS':stock.symbol;
-  if(!Array.isArray(data.news))throw newsError();
-  return {items:normalize(data.news.filter(item=>!item.relatedTickers?.length||(item.relatedTickers.includes(stock.symbol)||item.relatedTickers.includes(yahooSymbol))).map(item=>({id:String(item.uuid??item.link),title:text(item.title),publisher:text(item.publisher)||'Yahoo Finance',url:safeUrl(item.link),publishedAt:new Date(Number(item.providerPublishTime)*1000).toJSON()}))),source:'Yahoo Finance'};
- }
  return {
   async forSymbol(symbol,provider){
    if(!/^[A-Z0-9.-]{1,18}$/.test(symbol))return null;
@@ -51,8 +44,7 @@ export function createNewsProvider({fetchImpl=globalThis.fetch,now=()=>Date.now(
     const stock=seeded.get(symbol)??await provider.quote(symbol);if(!stock)return null;
     let result;
     try{
-     if(stock.market==='KR'){try{result=await google(stock);}catch{}if(!result?.items.length)result=await yahoo(stock);}
-     else{try{result=await yahoo(stock);}catch{}if(!result?.items.length)result=await google(stock);}
+     result=await google(stock);
     }catch(error){
      console.warn('news_fetch_failed',{symbol,code:error.code??error.name,upstreamStatus:error.upstreamStatus??null});
      if(saved?.value.items.length&&now()-saved.at<86400000)return {...saved.value,warning:'뉴스 갱신이 지연되어 마지막으로 받은 기사를 표시합니다.'};

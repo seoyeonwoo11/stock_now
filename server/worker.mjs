@@ -1,9 +1,10 @@
-import {createYahooProvider,createDemoProvider} from './providers.mjs';
+import {createDemoProvider} from './providers.mjs';
+import {createTossProvider} from './toss.mjs';
 import {catalog,ranges} from './catalog.mjs';
 import {createNewsProvider} from './news.mjs';
 import {assets} from './worker-assets.mjs';
 // Only completed data crosses request boundaries; pending I/O belongs to its request.
-const quoteCache=new Map(),newsCache=new Map(),stocks=new Map(catalog.map(stock=>[stock.symbol,stock])),demo=createDemoProvider();
+const quoteCache=new Map(),newsCache=new Map(),stocks=new Map(catalog.map(stock=>[stock.symbol,stock])),demo=createDemoProvider(),authState={};
 const json=(data,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
 export default {
  async fetch(request,env={}) {
@@ -14,8 +15,8 @@ export default {
    const asset=assets[path]??(path.includes('.')?null:assets['/']);
    return asset?new Response(asset.body,{headers:{'Content-Type':asset.type,'X-Content-Type-Options':'nosniff'}}):new Response('Not found',{status:404});
   }
-  const yahoo=createYahooProvider({cache:quoteCache,stocks}),news=createNewsProvider({cache:newsCache});
-  const isDemo=path.startsWith('/api/demo/'),route=path.slice(isDemo?9:4),provider=isDemo?demo:yahoo;
+  const toss=createTossProvider({clientId:env.TOSS_CLIENT_ID,clientSecret:env.TOSS_CLIENT_SECRET,cache:quoteCache,stocks,authState,db:env.DB}),news=createNewsProvider({cache:newsCache});
+  const isDemo=path.startsWith('/api/demo/'),route=path.slice(isDemo?9:4),provider=isDemo?demo:toss;
   try {
    if(route==='/status')return json({...provider.status,pollInterval:isDemo?5000:15000});
    if(route==='/search'){
@@ -27,7 +28,7 @@ export default {
    if(!match)return json({error:'API 경로를 찾을 수 없어요.'},404);
    const [,symbol,action]=match;
    if(!/^[A-Z0-9.-]{1,18}$/.test(symbol))return json({error:'종목 코드가 올바르지 않아요.'},400);
-   if(action==='news'){const data=await news.forSymbol(symbol,yahoo);return json(data??{error:'종목을 찾을 수 없어요.'},data?200:404);}
+   if(action==='news'){const data=await news.forSymbol(symbol,toss);return json(data??{error:'종목을 찾을 수 없어요.'},data?200:404);}
    if(action==='history'){
     const range=url.searchParams.get('range')??'1D';
     if(!Object.hasOwn(ranges,range))return json({error:'차트 기간이 올바르지 않아요.'},400);

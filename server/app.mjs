@@ -2,13 +2,14 @@ import express from 'express';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createYahooProvider,createDemoProvider } from './providers.mjs';
+import {createDemoProvider} from './providers.mjs';
+import {createTossProvider} from './toss.mjs';
 import { ranges } from './catalog.mjs';
 import {createNewsProvider} from './news.mjs';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
-export function createApp({mode='yahoo',provider,pollInterval=15000,serveStatic=true}={}) {
- if(!['yahoo','demo'].includes(mode))throw new Error('MARKET_DATA_MODE must be yahoo or demo');
- provider??=mode==='demo'?createDemoProvider():createYahooProvider();
+export function createApp({mode='toss',provider,pollInterval=15000,serveStatic=true}={}) {
+ if(!['toss','demo'].includes(mode))throw new Error('MARKET_DATA_MODE must be toss or demo');
+ provider??=mode==='demo'?createDemoProvider():createTossProvider({clientId:process.env.TOSS_CLIENT_ID,clientSecret:process.env.TOSS_CLIENT_SECRET});
  const app=express(),news=createNewsProvider();app.disable('x-powered-by');
  app.use((req,res,next)=>{res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','same-origin');if(req.path.startsWith('/api/'))res.setHeader('Cache-Control','no-store');next();});
  function api(provider,interval){
