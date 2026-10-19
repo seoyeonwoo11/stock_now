@@ -55,10 +55,10 @@ test('request-scoped news providers share completed data but not pending network
  const third=createNewsProvider({cache,fetchImpl:()=>{throw new Error('must use completed cache');}});
  assert.deepEqual((await third.forSymbol('005930')).items,response.items);
 });
-test('Google 503 for a Korean stock falls back to its Yahoo ticker RSS feed',async()=>{
+test('Google 503 for a Korean stock falls back to Yahoo company-name search with its exchange ticker',async()=>{
  const urls=[];
- const provider=createNewsProvider({fetchImpl:async value=>{const url=new URL(value);urls.push(url);return url.hostname==='news.google.com'?new Response('',{status:503}):new Response(rss);}});
+ const provider=createNewsProvider({fetchImpl:async value=>{const url=new URL(value);urls.push(url);return url.hostname==='news.google.com'?new Response('',{status:503}):Response.json({news:[{uuid:'samsung',title:'Samsung earnings',publisher:'Publisher',link:'https://finance.yahoo.com/samsung',providerPublishTime:1792371600,relatedTickers:['005930.KS']}]});}});
  const result=await provider.forSymbol('005930');
- assert.equal(urls.length,2);assert.equal(urls[1].hostname,'feeds.finance.yahoo.com');assert.equal(urls[1].searchParams.get('s'),'005930.KS');
- assert.equal(result.source,'Yahoo Finance RSS');assert.equal(result.items.length,2);
+ assert.equal(urls.length,2);assert.equal(urls[1].hostname,'query1.finance.yahoo.com');assert.equal(urls[1].searchParams.get('q'),'Samsung Electronics');
+ assert.equal(result.source,'Yahoo Finance');assert.equal(result.items.length,1);
 });

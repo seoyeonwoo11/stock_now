@@ -35,16 +35,12 @@ export function createNewsProvider({fetchImpl=globalThis.fetch,now=()=>Date.now(
   const url=new URL('https://news.google.com/rss/search');url.search=new URLSearchParams({q:query,hl:domestic?'ko':'en-US',gl:domestic?'KR':'US',ceid:domestic?'KR:ko':'US:en'}).toString();
   return rss(url.href,'Google News');
  }
- async function yahooFeed(stock){
-  const symbol=/^\d{6}$/.test(stock.symbol)?stock.symbol+'.KS':stock.symbol;
-  const url=new URL('https://feeds.finance.yahoo.com/rss/2.0/headline');url.search=new URLSearchParams({s:symbol,region:'US',lang:'en-US'}).toString();
-  return rss(url.href,'Yahoo Finance RSS');
- }
  async function yahoo(stock){
-  const url=new URL('https://query1.finance.yahoo.com/v1/finance/search');url.search=new URLSearchParams({q:stock.symbol,quotesCount:'0',newsCount:'12'}).toString();
+  const url=new URL('https://query1.finance.yahoo.com/v1/finance/search');url.search=new URLSearchParams({q:stock.market==='KR'?stock.englishName||stock.symbol:stock.symbol,quotesCount:'0',newsCount:'12'}).toString();
   const data=await(await request(url.href)).json();
+  const yahooSymbol=/^\d{6}$/.test(stock.symbol)?stock.symbol+'.KS':stock.symbol;
   if(!Array.isArray(data.news))throw newsError();
-  return {items:normalize(data.news.filter(item=>!item.relatedTickers?.length||item.relatedTickers.includes(stock.symbol)).map(item=>({id:String(item.uuid??item.link),title:text(item.title),publisher:text(item.publisher)||'Yahoo Finance',url:safeUrl(item.link),publishedAt:new Date(Number(item.providerPublishTime)*1000).toJSON()}))),source:'Yahoo Finance'};
+  return {items:normalize(data.news.filter(item=>!item.relatedTickers?.length||(item.relatedTickers.includes(stock.symbol)||item.relatedTickers.includes(yahooSymbol))).map(item=>({id:String(item.uuid??item.link),title:text(item.title),publisher:text(item.publisher)||'Yahoo Finance',url:safeUrl(item.link),publishedAt:new Date(Number(item.providerPublishTime)*1000).toJSON()}))),source:'Yahoo Finance'};
  }
  return {
   async forSymbol(symbol,provider){
@@ -55,7 +51,7 @@ export function createNewsProvider({fetchImpl=globalThis.fetch,now=()=>Date.now(
     const stock=seeded.get(symbol)??await provider.quote(symbol);if(!stock)return null;
     let result;
     try{
-     if(stock.market==='KR'){try{result=await google(stock);}catch{}if(!result?.items.length)result=await yahooFeed(stock);}
+     if(stock.market==='KR'){try{result=await google(stock);}catch{}if(!result?.items.length)result=await yahoo(stock);}
      else{try{result=await yahoo(stock);}catch{}if(!result?.items.length)result=await google(stock);}
     }catch(error){
      console.warn('news_fetch_failed',{symbol,code:error.code??error.name,upstreamStatus:error.upstreamStatus??null});
