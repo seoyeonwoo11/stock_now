@@ -75,3 +75,23 @@
  .market-browser th,.market-browser td{padding:12px 8px}
  .mobile-search-button{font-size:9px;padding:7px 8px}
 }
+
+/* Headlines for the selected instrument, below its chart. */
+.news-panel{min-width:0;overflow:hidden}
+.news-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:23px 24px 18px}
+.news-heading h2{display:flex;align-items:center;gap:9px;margin:0;font-size:16px;letter-spacing:-.4px}
+.news-heading h2 svg{color:#658e7c}
+.news-heading p{margin:8px 0 0;font-size:11px;color:#96a2b0;overflow-wrap:anywhere}
+.news-list{list-style:none;margin:0;padding:0 24px}
+.news-list li+li{border-top:1px solid var(--border)}
+.news-list a{display:block;padding:18px 0}
+.news-list a:hover h3{color:#20836b}
+.news-meta{display:flex;align-items:center;flex-wrap:wrap;gap:9px;color:#9aa5b3;font-size:9px}
+.news-meta>span{font-weight:600;color:#778b82}
+.news-list h3{display:flex;align-items:flex-start;justify-content:space-between;gap:15px;margin:9px 0 0;font-size:13px;line-height:1.75;font-weight:550;overflow-wrap:anywhere}
+.news-list h3 svg{flex-shrink:0;margin-top:4px;color:#a0b1a7}
+.news-source{padding:14px 24px;border-top:1px solid var(--border);font-size:9px;color:#a0aab7}
+.news-empty{padding:30px 24px 35px;text-align:center;color:#95a3b1;font-size:11px;line-height:1.8}
+.news-empty svg{color:#9eafa6}.news-empty p{margin:10px 0 16px}.news-loading{padding:0 24px 24px}
+.data-notice{margin:22px 0 28px}.mobile-search-button{margin-bottom:16px}
+@media(max-width:600px){.news-heading{padding:20px 18px 16px}.news-heading h2{font-size:15px}.news-list{padding:0 18px}.news-list a{padding:16px 0}.news-list h3{font-size:12px}.news-source{padding:13px 18px;font-size:8px}.news-loading{padding:0 18px 20px}.news-meta{font-size:8px}.data-notice{margin-top:18px}}

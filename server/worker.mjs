@@ -1,7 +1,8 @@
 import {createYahooProvider,createDemoProvider} from './providers.mjs';
 import {ranges} from './catalog.mjs';
+import {createNewsProvider} from './news.mjs';
 import {assets} from './worker-assets.mjs';
-const yahoo=createYahooProvider(),demo=createDemoProvider();
+const yahoo=createYahooProvider(),demo=createDemoProvider(),news=createNewsProvider();
 const json=(data,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
 export default {
  async fetch(request,env={}) {
@@ -20,10 +21,11 @@ export default {
     if(q.length>100||!['all','stock','etf'].includes(type)||!['all','KR','US'].includes(market))return json({error:'검색 조건이 올바르지 않아요.'},400);
     return json({...await provider.search({q,type,market}),source:provider.status.mode});
    }
-   const match=route.match(/^\/quotes\/([^/]+)(?:\/(history|stream))?$/);
+   const match=route.match(/^\/quotes\/([^/]+)(?:\/(history|stream|news))?$/);
    if(!match)return json({error:'API 경로를 찾을 수 없어요.'},404);
    const [,symbol,action]=match;
    if(!/^[A-Z0-9.-]{1,18}$/.test(symbol))return json({error:'종목 코드가 올바르지 않아요.'},400);
+   if(action==='news'){const data=await news.forSymbol(symbol,yahoo);return json(data??{error:'종목을 찾을 수 없어요.'},data?200:404);}
    if(action==='history'){
     const range=url.searchParams.get('range')??'1D';
     if(!Object.hasOwn(ranges,range))return json({error:'차트 기간이 올바르지 않아요.'},400);
@@ -47,6 +49,6 @@ export default {
     return new Response(stream,{headers:{'Content-Type':'text/event-stream','Cache-Control':'no-store'}});
    }
    return json(data);
-  }catch(error){const known=['PROVIDER_ERROR','PROVIDER_UNREACHABLE','PROVIDER_ACCESS_DENIED','PROVIDER_RATE_LIMIT','HISTORY_UNAVAILABLE','QUOTE_NOT_FOUND'].includes(error.code);return json({error:known?error.message:'시세를 가져오지 못했어요.',code:known?error.code:'PROVIDER_ERROR'},error.code==='QUOTE_NOT_FOUND'?404:503);}
+  }catch(error){const known=['PROVIDER_ERROR','PROVIDER_UNREACHABLE','PROVIDER_ACCESS_DENIED','PROVIDER_RATE_LIMIT','HISTORY_UNAVAILABLE','QUOTE_NOT_FOUND','NEWS_UNAVAILABLE'].includes(error.code);return json({error:known?error.message:'시세를 가져오지 못했어요.',code:known?error.code:'PROVIDER_ERROR'},error.code==='QUOTE_NOT_FOUND'?404:503);}
  }
 };

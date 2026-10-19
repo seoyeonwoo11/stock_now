@@ -4,11 +4,12 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createYahooProvider,createDemoProvider } from './providers.mjs';
 import { ranges } from './catalog.mjs';
+import {createNewsProvider} from './news.mjs';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 export function createApp({mode='yahoo',provider,pollInterval=15000,serveStatic=true}={}) {
  if(!['yahoo','demo'].includes(mode))throw new Error('MARKET_DATA_MODE must be yahoo or demo');
  provider??=mode==='demo'?createDemoProvider():createYahooProvider();
- const app=express();app.disable('x-powered-by');
+ const app=express(),news=createNewsProvider();app.disable('x-powered-by');
  app.use((req,res,next)=>{res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','same-origin');if(req.path.startsWith('/api/'))res.setHeader('Cache-Control','no-store');next();});
  function api(provider,interval){
   const router=express.Router();
@@ -20,6 +21,7 @@ export function createApp({mode='yahoo',provider,pollInterval=15000,serveStatic=
   });
   router.use('/quotes/:symbol',(req,res,next)=>{if(!/^[A-Z0-9.-]{1,18}$/.test(req.params.symbol))return res.status(400).json({error:'종목 코드가 올바르지 않아요.'});next();});
   router.get('/quotes/:symbol',async(req,res)=>{const data=await provider.quote(req.params.symbol);if(!data)return res.status(404).json({error:'종목을 찾을 수 없어요.'});res.json(data);});
+  router.get('/quotes/:symbol/news',async(req,res)=>{const data=await news.forSymbol(req.params.symbol,provider);res.status(data?200:404).json(data??{error:'종목을 찾을 수 없어요.'});});
   router.get('/quotes/:symbol/history',async(req,res)=>{const {range='1D'}=req.query;if(typeof range!=='string'||!Object.hasOwn(ranges,range))return res.status(400).json({error:'차트 기간이 올바르지 않아요.'});const data=await provider.history(req.params.symbol,range);if(!data)return res.status(404).json({error:'종목을 찾을 수 없어요.'});res.json(data);});
   router.get('/quotes/:symbol/stream',async(req,res)=>{
    const initial=await provider.quote(req.params.symbol);if(!initial)return res.status(404).json({error:'종목을 찾을 수 없어요.'});
@@ -35,6 +37,6 @@ export function createApp({mode='yahoo',provider,pollInterval=15000,serveStatic=
  app.use('/api',(req,res)=>res.status(404).json({error:'API 경로를 찾을 수 없어요.'}));
  app.get('/healthz',(req,res)=>res.json({status:'ok'}));
  if(serveStatic&&fs.existsSync(path.join(root,'dist/index.html'))){app.use(express.static(path.join(root,'dist')));app.get('/{*path}',(req,res)=>res.sendFile(path.join(root,'dist/index.html')));}
- app.use((error,req,res,next)=>{if(res.headersSent)return next(error);const known=['PROVIDER_ERROR','PROVIDER_UNREACHABLE','PROVIDER_ACCESS_DENIED','PROVIDER_RATE_LIMIT','HISTORY_UNAVAILABLE','QUOTE_NOT_FOUND'].includes(error.code);res.status(error.code==='QUOTE_NOT_FOUND'?404:known?503:502).json({error:known?error.message:'시세를 가져오지 못했어요. 잠시 후 다시 시도해 주세요.',code:known?error.code:'PROVIDER_ERROR'});});
+ app.use((error,req,res,next)=>{if(res.headersSent)return next(error);const known=['PROVIDER_ERROR','PROVIDER_UNREACHABLE','PROVIDER_ACCESS_DENIED','PROVIDER_RATE_LIMIT','HISTORY_UNAVAILABLE','QUOTE_NOT_FOUND','NEWS_UNAVAILABLE'].includes(error.code);res.status(error.code==='QUOTE_NOT_FOUND'?404:known?503:502).json({error:known?error.message:'시세를 가져오지 못했어요. 잠시 후 다시 시도해 주세요.',code:known?error.code:'PROVIDER_ERROR'});});
  return app;
 }
