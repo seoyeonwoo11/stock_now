@@ -8,9 +8,10 @@ export function createTossAuth({clientId,clientSecret,fetchImpl=globalThis.fetch
   catch{throw providerError('토스증권 인증 서버에 연결할 수 없어요.','PROVIDER_UNREACHABLE');}
   if(!response.ok){
    let reason;try{reason=await response.json();}catch{}
-   const known=['invalid_client','invalid_request','access_denied','unsupported_grant_type'];
-   console.warn('toss_auth_failed',{status:response.status,code:known.includes(reason?.error)?reason.error:'upstream_error',configured:typeof clientId==='string'&&typeof clientSecret==='string'});
-   throw providerError(response.status===403?'토스증권 허용 IP 설정을 확인해 주세요.':'토스증권 API 키와 인증 설정을 확인해 주세요.','PROVIDER_ACCESS_DENIED');
+   const known=['invalid_client','invalid_request','access_denied','unsupported_grant_type','edge-blocked','ip-not-allowed','forbidden'];
+   const code=typeof reason?.error==='object'?reason.error.code:reason?.error;
+   console.warn('toss_auth_failed',{status:response.status,code:known.includes(code)?code:'upstream_error',configured:typeof clientId==='string'&&typeof clientSecret==='string'});
+   throw providerError('토스증권 API 키와 호출 서버의 허용 IP 설정을 확인해 주세요.','PROVIDER_ACCESS_DENIED');
   }
   let data;try{data=await response.json();}catch{throw providerError('토스증권 인증 응답이 올바르지 않아요.');}
   if(typeof data.access_token!=='string'||!data.access_token||!Number.isFinite(data.expires_in)||data.expires_in<=60)throw providerError('토스증권 인증 응답이 올바르지 않아요.');

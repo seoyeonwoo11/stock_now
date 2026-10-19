@@ -48,4 +48,4 @@ test('request-scoped news providers share completed data but not pending network
  const third=createNewsProvider({cache,fetchImpl:()=>{throw new Error('must use completed cache');}});
  assert.deepEqual((await third.forSymbol('005930')).items,response.items);
 });
-test('Google failure never calls a financial website fallback',async()=>{const urls=[];const provider=createNewsProvider({fetchImpl:async url=>{urls.push(url);return new Response('',{status:503});}});await assert.rejects(()=>provider.forSymbol('005930'),e=>e.code==='NEWS_UNAVAILABLE');assert.equal(urls.length,1);assert.equal(new URL(urls[0]).hostname,'news.google.com');});
+test('failed Google feed falls back to Bing RSS without a financial website',async()=>{const urls=[];const provider=createNewsProvider({fetchImpl:async url=>{urls.push(url);return new URL(url).hostname==='news.google.com'?new Response('',{status:503}):new Response(rss);}});const result=await provider.forSymbol('005930');assert.equal(result.source,'Bing News');assert.deepEqual(urls.map(u=>new URL(u).hostname),['news.google.com','www.bing.com']);assert.equal(result.items.length,2);});

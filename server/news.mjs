@@ -24,7 +24,8 @@ export function createNewsProvider({fetchImpl=globalThis.fetch,now=()=>Date.now(
   const channel=parser.parse(body).rss?.channel;if(!channel)throw newsError();
   const entries=channel.item?Array.isArray(channel.item)?channel.item:[channel.item]:[];
   const items=entries.map(item=>{
-   const publisher=text(typeof item.source==='object'?item.source?.['#text']:item.source)||source;
+   const origin=item.source??item['News:Source'];
+   const publisher=text(typeof origin==='object'?origin?.['#text']:origin)||source;
    let title=text(item.title);const suffix=` - ${publisher}`;if(title.endsWith(suffix))title=title.slice(0,-suffix.length);
    return {id:String(item.guid?.['#text']??item.guid??item.link),title,publisher,url:safeUrl(text(item.link)),publishedAt:new Date(item.pubDate).toJSON()};
   });
@@ -35,6 +36,10 @@ export function createNewsProvider({fetchImpl=globalThis.fetch,now=()=>Date.now(
   const url=new URL('https://news.google.com/rss/search');url.search=new URLSearchParams({q:query,hl:domestic?'ko':'en-US',gl:domestic?'KR':'US',ceid:domestic?'KR:ko':'US:en'}).toString();
   return rss(url.href,'Google News');
  }
+ async function bing(stock){
+  const url=new URL('https://www.bing.com/news/search');url.search=new URLSearchParams({q:stock.market==='KR'?`"${stock.name}"`:`${stock.symbol} stock`,format:'rss',setlang:stock.market==='KR'?'ko-KR':'en-US'}).toString();
+  return rss(url.href,'Bing News');
+ }
  return {
   async forSymbol(symbol,provider){
    if(!/^[A-Z0-9.-]{1,18}$/.test(symbol))return null;
@@ -44,7 +49,8 @@ export function createNewsProvider({fetchImpl=globalThis.fetch,now=()=>Date.now(
     const stock=seeded.get(symbol)??await provider.quote(symbol);if(!stock)return null;
     let result;
     try{
-     result=await google(stock);
+     try{result=await google(stock);}catch{}
+     if(!result?.items.length)result=await bing(stock);
     }catch(error){
      console.warn('news_fetch_failed',{symbol,code:error.code??error.name,upstreamStatus:error.upstreamStatus??null});
      if(saved?.value.items.length&&now()-saved.at<86400000)return {...saved.value,warning:'뉴스 갱신이 지연되어 마지막으로 받은 기사를 표시합니다.'};

@@ -2,7 +2,7 @@
 
 Production URL: https://stock-now-chris.oakenelf10.chatgpt.site
 
-Sites runs the React app and same-origin API in a Cloudflare Worker. The Express server remains available for standalone Node.js hosting. Both use Toss Securities Open API; Google News RSS supplies related news because Toss does not provide a news endpoint.
+Sites runs the React app and same-origin API in a Cloudflare Worker. The Express server remains available for standalone Node.js hosting. Both use Toss Securities Open API; Google News RSS with Bing News RSS fallback supplies related news because Toss does not provide a news endpoint.
 
 Set TOSS_CLIENT_ID and TOSS_CLIENT_SECRET as Sites runtime Secrets. Local .env files are not uploaded. No trading or account endpoints are implemented.
 
