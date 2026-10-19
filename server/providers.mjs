@@ -21,9 +21,9 @@ export function createYahooProvider({ fetchImpl=globalThis.fetch, now=()=>Date.n
   })();
   inflight.set(path,task); try{return await task;}finally{inflight.delete(path);}
  }
- async function chart(symbol,range='1D') {
+ async function chart(symbol,range='1D',includeExtended=false) {
   const [period,interval]=ranges[range];
-  const data=await request(`/v8/finance/chart/${encodeURIComponent(symbolForYahoo(symbol))}?range=${period}&interval=${interval}`,range==='1D'?15000:60000);
+  const data=await request(`/v8/finance/chart/${encodeURIComponent(symbolForYahoo(symbol))}?range=${period}&interval=${interval}${includeExtended?'&includePrePost=true':''}`,range==='1D'?15000:60000);
   const result=data.chart?.result?.[0];
   if(!result||data.chart.error)throw providerError('이 종목의 시세가 없어요.','QUOTE_NOT_FOUND');
   return result;
@@ -68,8 +68,15 @@ export function createYahooProvider({ fetchImpl=globalThis.fetch, now=()=>Date.n
   },
   async history(symbol,range) {
    if(!stocks.has(symbol)&&!await quote(symbol))return null;
-   const data=await chart(symbol,range), closes=data.indicators?.quote?.[0]?.close??[];
-   const points=(data.timestamp??[]).map((t,i)=>({time:new Date(t*1000).toISOString(),price:closes[i]})).filter(p=>Number.isFinite(p.price));
+   const intraday=range==='1D'||range==='1W';
+   const data=await chart(symbol,range,intraday), closes=data.indicators?.quote?.[0]?.close??[];
+   const korean=data.meta?.exchangeTimezoneName==='Asia/Seoul';
+   const periods=data.meta?.tradingPeriods;
+   const regular=(Array.isArray(periods)?periods:periods?.regular??[]).flat().filter(p=>Number.isFinite(p?.start)&&Number.isFinite(p?.end)&&p.end>p.start).map(p=>{
+    // Yahoo sometimes returns Korea's old 6-hour session; KRX regular trading now lasts 6.5 hours.
+    return korean&&p.end-p.start===21600?{...p,end:p.end+1800}:p;
+   });
+   const points=(data.timestamp??[]).map((t,i)=>({time:new Date(t*1000).toISOString(),price:closes[i],...(intraday?{session:!regular.length?'unknown':regular.some(p=>t>=p.start&&(t<p.end||korean&&t===p.end))?'regular':'extended'}:{})})).filter(p=>Number.isFinite(p.price));
    if(!points.length)throw providerError('이 기간의 차트 데이터가 없어요.','HISTORY_UNAVAILABLE');
    return {symbol,range,points,isDemo:false};
   }
