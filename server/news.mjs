@@ -4,7 +4,7 @@ import {catalog} from './catalog.mjs';
 const seeded=new Map(catalog.map(stock=>[stock.symbol,stock]));
 const parser=new XMLParser({ignoreAttributes:false,parseTagValue:false,processEntities:false});
 const text=value=>String(value??'').replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#39;|&apos;/g,"'").replace(/&lt;/g,'<').replace(/&gt;/g,'>');
-const newsError=()=>Object.assign(new Error('뉴스를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.'),{code:'NEWS_UNAVAILABLE'});
+const newsError=()=>Object.assign(new Error('뉴스 제공원 응답이 지연되거나 연결되지 않아요. 다시 시도해 주세요.'),{code:'NEWS_UNAVAILABLE'});
 function safeUrl(value){try{const url=new URL(value);return url.protocol==='https:'&&!url.username&&!url.password?url.href:null;}catch{return null;}}
 function normalize(items){
  const seen=new Set();
@@ -12,11 +12,12 @@ function normalize(items){
   .sort((a,b)=>Date.parse(b.publishedAt)-Date.parse(a.publishedAt))
   .filter(item=>{if(seen.has(item.url))return false;seen.add(item.url);return true;}).slice(0,6);
 }
-export function createNewsProvider({fetchImpl=globalThis.fetch,now=()=>Date.now()}={}){
- const cache=new Map(),inflight=new Map();
+export function createNewsProvider({fetchImpl=globalThis.fetch,now=()=>Date.now(),cache=new Map()}={}){
+ // shortcut: this completed-data cache is isolate-local; use shared storage if cold-start fallback is needed.
+ const inflight=new Map();
  async function request(url){
   const response=await fetchImpl(url,{headers:{Accept:'application/json, application/rss+xml, application/xml'},signal:AbortSignal.timeout(8000)});
-  if(!response.ok)throw newsError();return response;
+  if(!response.ok)throw Object.assign(newsError(),{upstreamStatus:response.status});return response;
  }
  async function google(stock){
   const domestic=stock.market==='KR',query=domestic?`"${stock.name}" when:30d`:`${stock.symbol} stock when:30d`;
@@ -48,7 +49,11 @@ export function createNewsProvider({fetchImpl=globalThis.fetch,now=()=>Date.now(
     try{
      if(stock.market==='KR')result=await google(stock);
      else{try{result=await yahoo(stock);}catch{}if(!result?.items.length)result=await google(stock);}
-    }catch{throw newsError();}
+    }catch(error){
+     console.warn('news_fetch_failed',{symbol,code:error.code??error.name,upstreamStatus:error.upstreamStatus??null});
+     if(saved?.value.items.length&&now()-saved.at<86400000)return {...saved.value,warning:'뉴스 갱신이 지연되어 마지막으로 받은 기사를 표시합니다.'};
+     throw newsError();
+    }
     const value={symbol,...result,fetchedAt:new Date(now()).toISOString()};
     if(cache.size>=100)cache.delete(cache.keys().next().value);cache.set(symbol,{at:now(),value});return value;
    })();

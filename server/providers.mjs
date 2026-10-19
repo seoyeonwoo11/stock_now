@@ -1,9 +1,8 @@
 import { catalog, matches, ranges } from './catalog.mjs';
 export const providerError=(message,code='PROVIDER_ERROR')=>Object.assign(new Error(message),{code});
 const symbolForYahoo=symbol=>/^\d{6}$/.test(symbol)?`${symbol}.KS`:symbol;
-export function createYahooProvider({ fetchImpl=globalThis.fetch, now=()=>Date.now() }={}) {
- const stocks=new Map(catalog.map(s=>[s.symbol,s]));
- const cache=new Map(), inflight=new Map();
+export function createYahooProvider({ fetchImpl=globalThis.fetch, now=()=>Date.now(), cache=new Map(), stocks=new Map(catalog.map(s=>[s.symbol,s])) }={}) {
+ const inflight=new Map();
  async function request(path,ttl=15000) {
   const saved=cache.get(path);
   if(saved && now()-saved.time<ttl)return saved.value;

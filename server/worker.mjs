@@ -1,8 +1,9 @@
 import {createYahooProvider,createDemoProvider} from './providers.mjs';
-import {ranges} from './catalog.mjs';
+import {catalog,ranges} from './catalog.mjs';
 import {createNewsProvider} from './news.mjs';
 import {assets} from './worker-assets.mjs';
-const yahoo=createYahooProvider(),demo=createDemoProvider(),news=createNewsProvider();
+// Only completed data crosses request boundaries; pending I/O belongs to its request.
+const quoteCache=new Map(),newsCache=new Map(),stocks=new Map(catalog.map(stock=>[stock.symbol,stock])),demo=createDemoProvider();
 const json=(data,status=200)=>Response.json(data,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'}});
 export default {
  async fetch(request,env={}) {
@@ -13,6 +14,7 @@ export default {
    const asset=assets[path]??(path.includes('.')?null:assets['/']);
    return asset?new Response(asset.body,{headers:{'Content-Type':asset.type,'X-Content-Type-Options':'nosniff'}}):new Response('Not found',{status:404});
   }
+  const yahoo=createYahooProvider({cache:quoteCache,stocks}),news=createNewsProvider({cache:newsCache});
   const isDemo=path.startsWith('/api/demo/'),route=path.slice(isDemo?9:4),provider=isDemo?demo:yahoo;
   try {
    if(route==='/status')return json({...provider.status,pollInterval:isDemo?5000:15000});

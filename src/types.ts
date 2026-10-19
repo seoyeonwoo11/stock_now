@@ -4,4 +4,4 @@ export type Range='1D'|'1W'|'1M'|'3M'|'1Y';
 export interface Status {mode:'yahoo'|'demo';label:string;disclaimer:string;pollInterval:number}
 
 export interface NewsArticle {id:string;title:string;publisher:string;url:string;publishedAt:string}
-export interface NewsFeed {symbol:string;items:NewsArticle[];source:string;fetchedAt:string}
+export interface NewsFeed {symbol:string;items:NewsArticle[];source:string;fetchedAt:string;warning?:string}

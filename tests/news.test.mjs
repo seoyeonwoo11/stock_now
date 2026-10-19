@@ -38,3 +38,20 @@ test('invalid or missing symbols and malformed feeds do not fabricate articles',
  assert.equal(await provider.forSymbol('MISSING',{quote:async()=>null}),null);
  await assert.rejects(()=>provider.forSymbol('005930'),error=>error.code==='NEWS_UNAVAILABLE');
 });
+test('a failed refresh retains dated news for at most one day',async()=>{
+ let now=1000,fail=false;
+ const provider=createNewsProvider({now:()=>now,fetchImpl:async()=>{if(fail)throw new Error('network failure');return new Response(rss);}});
+ const fresh=await provider.forSymbol('005930');fail=true;now+=300001;
+ const stale=await provider.forSymbol('005930');
+ assert.deepEqual(stale.items,fresh.items);assert.equal(stale.fetchedAt,fresh.fetchedAt);assert.match(stale.warning,/마지막으로 받은 기사/);
+ now=1000+86400000;await assert.rejects(()=>provider.forSymbol('005930'),error=>error.code==='NEWS_UNAVAILABLE');
+});
+test('request-scoped news providers share completed data but not pending network work',async()=>{
+ const cache=new Map();let release,calls=0;
+ const first=createNewsProvider({cache,fetchImpl:()=>{calls++;return new Promise(resolve=>{release=()=>resolve(new Response(rss));});}});
+ const pending=first.forSymbol('005930');
+ const second=createNewsProvider({cache,fetchImpl:async()=>{calls++;return new Response(rss);}});
+ const response=await second.forSymbol('005930');assert.equal(calls,2);release();await pending;
+ const third=createNewsProvider({cache,fetchImpl:()=>{throw new Error('must use completed cache');}});
+ assert.deepEqual((await third.forSymbol('005930')).items,response.items);
+});

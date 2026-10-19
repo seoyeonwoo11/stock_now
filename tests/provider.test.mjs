@@ -16,3 +16,12 @@ test('search outside the default list and quote restoration after restart',async
  const fetchImpl=async url=>Response.json(url.includes('/search?')?{quotes:[{symbol:'ADBE',shortname:'Adobe',longname:'Adobe Inc.',quoteType:'EQUITY',exchange:'NMS'}]}:equity);
  const data=await createYahooProvider({fetchImpl}).search({q:'Adobe',market:'US'});assert.equal(data.items.length,1);assert.equal(data.items[0].symbol,'ADBE');assert.equal((await createYahooProvider({fetchImpl}).quote('ADBE')).isDemo,false);
 });
+test('request-scoped quote providers share completed data but never await another request',async()=>{
+ const cache=new Map();let release,calls=0;
+ const first=createYahooProvider({cache,fetchImpl:()=>{calls++;return new Promise(resolve=>{release=()=>resolve(Response.json(fixture));});}});
+ const pending=first.quote('005930');
+ const second=createYahooProvider({cache,fetchImpl:async()=>{calls++;return Response.json(fixture);}});
+ const response=await second.quote('005930');assert.equal(calls,2);release();await pending;
+ const third=createYahooProvider({cache,fetchImpl:()=>{throw new Error('must use completed cache');}});
+ assert.deepEqual(await third.quote('005930'),response);
+});
