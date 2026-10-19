@@ -1,0 +1,4 @@
+export interface Quote { symbol:string; name:string; englishName:string; type:'stock'|'etf'; market:'KR'|'US'; exchange:string; currency:string; color:string; initials:string; sector:string; description:string; price:number; previousClose:number; change:number; changePercent:number; open:number|null; high:number|null; low:number|null; volume:number|null; asOf:string; source:'yahoo'|'demo'; isDemo:boolean; delayMinutes:number|null }
+export interface Point {time:string;price:number}
+export type Range='1D'|'1W'|'1M'|'3M'|'1Y';
+export interface Status {mode:'yahoo'|'demo';label:string;disclaimer:string;pollInterval:number}

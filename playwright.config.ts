@@ -1,0 +1,2 @@
+import { defineConfig } from '@playwright/test';
+export default defineConfig({testDir:'./tests/ui',timeout:30000,workers:1,reporter:'list',use:{baseURL:'http://127.0.0.1:3101',browserName:'chromium',launchOptions:{executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',args:['--no-sandbox']},trace:'retain-on-failure'},webServer:{command:'PORT=3101 MARKET_DATA_MODE=yahoo npm start',url:'http://127.0.0.1:3101/healthz',reuseExistingServer:false,timeout:30000}});
