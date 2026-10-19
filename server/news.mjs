@@ -19,18 +19,26 @@ export function createNewsProvider({fetchImpl=globalThis.fetch,now=()=>Date.now(
   const response=await fetchImpl(url,{headers:{Accept:'application/json, application/rss+xml, application/xml'},signal:AbortSignal.timeout(8000)});
   if(!response.ok)throw Object.assign(newsError(),{upstreamStatus:response.status});return response;
  }
- async function google(stock){
-  const domestic=stock.market==='KR',query=domestic?`"${stock.name}" when:30d`:`${stock.symbol} stock when:30d`;
-  const url=new URL('https://news.google.com/rss/search');url.search=new URLSearchParams({q:query,hl:domestic?'ko':'en-US',gl:domestic?'KR':'US',ceid:domestic?'KR:ko':'US:en'}).toString();
-  const body=await(await request(url.href)).text();if(body.length>1000000||/<!DOCTYPE|<!ENTITY/i.test(body))throw newsError();
+ async function rss(url,source){
+  const body=await(await request(url)).text();if(body.length>1000000||/<!DOCTYPE|<!ENTITY/i.test(body))throw newsError();
   const channel=parser.parse(body).rss?.channel;if(!channel)throw newsError();
   const entries=channel.item?Array.isArray(channel.item)?channel.item:[channel.item]:[];
   const items=entries.map(item=>{
-   const publisher=text(typeof item.source==='object'?item.source?.['#text']:item.source)||'언론사';
+   const publisher=text(typeof item.source==='object'?item.source?.['#text']:item.source)||source;
    let title=text(item.title);const suffix=` - ${publisher}`;if(title.endsWith(suffix))title=title.slice(0,-suffix.length);
-   return {id:String(item.guid?.['#text']??item.guid??item.link),title,publisher,url:safeUrl(item.link),publishedAt:new Date(item.pubDate).toJSON()};
+   return {id:String(item.guid?.['#text']??item.guid??item.link),title,publisher,url:safeUrl(text(item.link)),publishedAt:new Date(item.pubDate).toJSON()};
   });
-  return {items:normalize(items),source:'Google News'};
+  return {items:normalize(items),source};
+ }
+ async function google(stock){
+  const domestic=stock.market==='KR',query=domestic?`"${stock.name}" when:30d`:`${stock.symbol} stock when:30d`;
+  const url=new URL('https://news.google.com/rss/search');url.search=new URLSearchParams({q:query,hl:domestic?'ko':'en-US',gl:domestic?'KR':'US',ceid:domestic?'KR:ko':'US:en'}).toString();
+  return rss(url.href,'Google News');
+ }
+ async function yahooFeed(stock){
+  const symbol=/^\d{6}$/.test(stock.symbol)?stock.symbol+'.KS':stock.symbol;
+  const url=new URL('https://feeds.finance.yahoo.com/rss/2.0/headline');url.search=new URLSearchParams({s:symbol,region:'US',lang:'en-US'}).toString();
+  return rss(url.href,'Yahoo Finance RSS');
  }
  async function yahoo(stock){
   const url=new URL('https://query1.finance.yahoo.com/v1/finance/search');url.search=new URLSearchParams({q:stock.symbol,quotesCount:'0',newsCount:'12'}).toString();
@@ -47,7 +55,7 @@ export function createNewsProvider({fetchImpl=globalThis.fetch,now=()=>Date.now(
     const stock=seeded.get(symbol)??await provider.quote(symbol);if(!stock)return null;
     let result;
     try{
-     if(stock.market==='KR')result=await google(stock);
+     if(stock.market==='KR'){try{result=await google(stock);}catch{}if(!result?.items.length)result=await yahooFeed(stock);}
      else{try{result=await yahoo(stock);}catch{}if(!result?.items.length)result=await google(stock);}
     }catch(error){
      console.warn('news_fetch_failed',{symbol,code:error.code??error.name,upstreamStatus:error.upstreamStatus??null});

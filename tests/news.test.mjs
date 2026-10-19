@@ -55,3 +55,10 @@ test('request-scoped news providers share completed data but not pending network
  const third=createNewsProvider({cache,fetchImpl:()=>{throw new Error('must use completed cache');}});
  assert.deepEqual((await third.forSymbol('005930')).items,response.items);
 });
+test('Google 503 for a Korean stock falls back to its Yahoo ticker RSS feed',async()=>{
+ const urls=[];
+ const provider=createNewsProvider({fetchImpl:async value=>{const url=new URL(value);urls.push(url);return url.hostname==='news.google.com'?new Response('',{status:503}):new Response(rss);}});
+ const result=await provider.forSymbol('005930');
+ assert.equal(urls.length,2);assert.equal(urls[1].hostname,'feeds.finance.yahoo.com');assert.equal(urls[1].searchParams.get('s'),'005930.KS');
+ assert.equal(result.source,'Yahoo Finance RSS');assert.equal(result.items.length,2);
+});
