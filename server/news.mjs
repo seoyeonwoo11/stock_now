@@ -16,7 +16,7 @@ export function createNewsProvider({fetchImpl=globalThis.fetch,now=()=>Date.now(
  // shortcut: this completed-data cache is isolate-local; use shared storage if cold-start fallback is needed.
  const inflight=new Map();
  async function request(url){
-  const response=await fetchImpl(url,{headers:{Accept:'application/json, application/rss+xml, application/xml'},signal:AbortSignal.timeout(8000)});
+  const response=await fetchImpl(url,{headers:{'User-Agent':'Mozilla/5.0 StockNow/0.2',Accept:'application/json, application/rss+xml, application/xml'},signal:AbortSignal.timeout(8000)});
   if(!response.ok)throw Object.assign(newsError(),{upstreamStatus:response.status});return response;
  }
  async function rss(url,source){

@@ -9,10 +9,10 @@ const rss=`<rss><channel>
 <item><title>잘못된 링크</title><link>javascript:alert(1)</link><pubDate>Mon, 19 Oct 2026 01:00:00 GMT</pubDate></item>
 </channel></rss>`;
 test('Korean RSS keeps publisher/date, decodes title, sorts, deduplicates and excludes unsafe links',async()=>{
- let requested;
- const provider=createNewsProvider({fetchImpl:async url=>{requested=new URL(url);return new Response(rss);}});
+ let requested,headers;
+ const provider=createNewsProvider({fetchImpl:async(url,options)=>{requested=new URL(url);headers=options.headers;return new Response(rss); }});
  const result=await provider.forSymbol('005930');
- assert.equal(requested.hostname,'news.google.com');assert.match(requested.searchParams.get('q'),/삼성전자/);
+ assert.match(headers['User-Agent'],/StockNow/);assert.equal(requested.hostname,'news.google.com');assert.match(requested.searchParams.get('q'),/삼성전자/);
  assert.equal(result.source,'Google News');assert.equal(result.items.length,2);
  assert.equal(result.items[0].title,'삼성전자 & 실적');assert.equal(result.items[0].publisher,'경제신문');
  assert.equal(result.items[0].publishedAt,'2026-10-19T01:00:00.000Z');
